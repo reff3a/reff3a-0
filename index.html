@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <base href="/">
+  
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="تطبيق وموقع رفعة للقرآن الكريم">
+  <meta name="theme-color" content="#0A1128">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>رِفْعَة | القرآن الكريم</title>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      background-color: #0A1128;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #app-splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, #162A4A 0%, #0A1128 100%);
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 1;
+    }
+
+    #app-splash-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .splash-card {
+      text-align: center;
+      padding: 30px;
+      width: 88%;
+      max-width: 360px;
+    }
+
+    .brand-logo-wrap {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 20px auto;
+    }
+
+    .gold-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 3px solid rgba(230, 194, 128, 0.15);
+      border-top: 3px solid #E6C280;
+      border-radius: 50%;
+      animation: spin 0.9s infinite linear;
+      box-shadow: 0 0 15px rgba(230, 194, 128, 0.2);
+    }
+
+    .gold-ring.error-state {
+      animation: none;
+      border-top-color: #E6C280;
+      border-color: rgba(230, 194, 128, 0.3);
+    }
+
+    .brand-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 26px;
+      color: #E6C280;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .app-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #E6C280;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .app-subtitle {
+      font-size: 13px;
+      color: rgba(230, 194, 128, 0.75);
+      margin-bottom: 24px;
+      transition: color 0.3s ease;
+    }
+
+    .app-subtitle.error-text {
+      color: #ff8a8a;
+      font-weight: 600;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(230, 194, 128, 0.2);
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #C5A059 0%, #E6C280 100%);
+      border-radius: 10px;
+      transition: width 0.2s ease-out;
+    }
+
+    .progress-bar.error-bar {
+      background: linear-gradient(90deg, #a04a4a 0%, #ff8a8a 100%);
+    }
+
+    .percentage-indicator {
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(230, 194, 128, 0.6);
+      font-weight: 600;
+    }
+
+    .retry-btn {
+      margin-top: 18px;
+      display: none;
+      background: #E6C280;
+      color: #0A1128;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .retry-btn.show {
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-splash-screen">
+    <div class="splash-card">
+      <div class="brand-logo-wrap">
+        <div id="gold-ring" class="gold-ring"></div>
+        <div class="brand-icon">📖</div>
+      </div>
+      <div class="app-title">رِفْعَة</div>
+      <div id="status-label" class="app-subtitle">جاري تحميل المصحف الشريف...</div>
+      
+      <div class="progress-container">
+        <div id="progress-fill" class="progress-bar"></div>
+      </div>
+      <div id="percent-label" class="percentage-indicator">0%</div>
+
+      <button id="retry-btn" class="retry-btn" onclick="location.reload()">إعادة المحاولة</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var splash = document.getElementById('app-splash-screen');
+      var fill = document.getElementById('progress-fill');
+      var percentText = document.getElementById('percent-label');
+      var statusText = document.getElementById('status-label');
+      var ring = document.getElementById('gold-ring');
+      var retryBtn = document.getElementById('retry-btn');
+
+      var progress = 0;
+      var isDismissed = false;
+      var hasRealError = false;
+
+      function updateProgress(val, msg) {
+        if (isDismissed || hasRealError) return;
+        progress = Math.min(val, 95); // لا يصل لـ 100% إلا عند النجاح الحقيقي
+        if (fill) fill.style.width = progress + '%';
+        if (percentText) percentText.innerText = Math.floor(progress) + '%';
+        if (msg && statusText) statusText.innerText = msg;
+      }
+
+      var timer = setInterval(function() {
+        if (progress < 50) {
+          updateProgress(progress + 5, "جاري تحضير القارئ والسور...");
+        } else if (progress < 90) {
+          updateProgress(progress + 1.5, "جاري تجهيز الواجهة...");
+        }
+      }, 100);
+
+      // النجاح الحقيقي فقط: عند رسم أول إطار فعلي من Flutter
+      function hideSplashOnSuccess() {
+        if (isDismissed || hasRealError) return;
+        isDismissed = true;
+        clearInterval(timer);
+        updateProgress(100, "جاهز");
+
+        setTimeout(function() {
+          if (splash) {
+            splash.classList.add('fade-out');
+            setTimeout(function() { splash.remove(); }, 500);
+          }
+        }, 150);
+      }
+
+      // في حال وجود خطأ حقيقي: تظهر رسالة بدلاً من الاختفاء الأعمى
+      function showRealError(reason) {
+        if (isDismissed || hasRealError) return;
+        hasRealError = true;
+        clearInterval(timer);
+
+        if (statusText) {
+          statusText.innerText = "حدث خطأ أثناء تحميل التطبيق";
+          statusText.classList.add('error-text');
+        }
+        if (fill) fill.classList.add('error-bar');
+        if (ring) ring.classList.add('error-state');
+        if (retryBtn) retryBtn.classList.add('show');
+
+        console.error("Rifah Load Error:", reason);
+      }
+
+      // الاستماع للنجاح الحقيقي فقط
+      window.addEventListener('flutter-first-frame', hideSplashOnSuccess);
+
+      // رصد الأخطاء الحقيقية في الصفحة (مثل فشل تحميل سكريبت)
+      window.addEventListener('error', function(e) {
+        showRealError(e.message || 'Unknown script error');
+      });
+
+      // مؤقت معقول: إذا تجاوز 15 ثانية بدون نجاح ولا خطأ واضح، نعرض زر إعادة المحاولة
+      setTimeout(function() {
+        if (!isDismissed && !hasRealError) {
+          showRealError('انتهت المهلة - قد يكون الاتصال بطيئاً');
+        }
+      }, 45000);
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
